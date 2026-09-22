@@ -19,7 +19,7 @@ class DoctorController
         $action = $_GET['action'] ?? 'view';
         $user = $this->auth->getUser();
 
-        if (!$user && $action !== 'login') {
+        if (!$user && $action !== 'login' && $action !== 'register') {
             header('Location: index.php?action=login');
             exit;
         }
@@ -27,6 +27,9 @@ class DoctorController
         switch ($action) {
             case 'login': 
                 $this->loginAction(); 
+                break;
+            case 'register':
+                $this->registerAction();
                 break;
             case 'logout': 
                 $this->auth->logout();
@@ -38,6 +41,10 @@ class DoctorController
                 break;
             case 'reservations': 
                 $this->reservationsAction(); 
+                break;
+            case 'ticket':
+                $this->requireRole('pasien');
+                $this->ticketAction();
                 break;
             case 'add': 
                 $this->requireRole('admin');
@@ -85,6 +92,32 @@ class DoctorController
         require 'login.php';
     }
 
+    private function registerAction(): void
+    {
+        if ($this->auth->getUser()) { 
+            header('Location: index.php'); 
+            exit; 
+        }
+
+        $error = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $username = trim($_POST['username'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $nama = trim($_POST['nama'] ?? '');
+
+            if ($username === '' || $password === '' || $nama === '') {
+                $error = 'Semua field wajib diisi!';
+            } else if ($this->auth->register($username, $password, $nama)) {
+                $this->auth->login($username, $password);
+                header('Location: index.php');
+                exit;
+            } else {
+                $error = 'Username sudah digunakan, silakan pilih yang lain.';
+            }
+        }
+        require 'register.php';
+    }
+
     private function bookAction(): void 
     {
         $id = (int)($_GET['id'] ?? 0);
@@ -105,14 +138,14 @@ class DoctorController
             if ($hari === '' || $jam === '') {
                 $error = 'Silakan pilih hari praktik yang tersedia.';
             } else {
-                $this->reservation->add([
+                $newId = $this->reservation->add([
                     'id_dokter' => $doctor['id'],
                     'nama_dokter' => $doctor['nama_dokter'],
                     'nama_pasien' => $user['nama'],
                     'hari' => $hari,
                     'jam' => $jam
                 ]);
-                header('Location: index.php?action=reservations');
+                header('Location: index.php?action=ticket&id=' . $newId);
                 exit;
             }
         }
@@ -128,6 +161,20 @@ class DoctorController
             $reservations = array_filter($reservations, fn($r) => $r['nama_pasien'] === $user['nama']);
         }
         require 'reservations.php';
+    }
+
+    private function ticketAction(): void
+    {
+        $id = (int)($_GET['id'] ?? 0);
+        $ticket = $this->reservation->findById($id);
+        $user = $this->auth->getUser();
+
+        if (!$ticket || $ticket['nama_pasien'] !== $user['nama']) {
+            header('Location: index.php?action=reservations');
+            exit;
+        }
+
+        require 'ticket.php';
     }
 
     private function viewAction(): void 

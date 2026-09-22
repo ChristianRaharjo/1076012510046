@@ -1,20 +1,48 @@
 <?php
 date_default_timezone_set('Asia/Jakarta');
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 class AuthModel {
-    public function login(string $username, string $password): bool {
-        if ($username === 'admin' && $password === '123') {
-            $_SESSION['user'] = ['username' => 'admin', 'role' => 'admin', 'nama' => 'Administrator'];
-            return true;
+    private const USER_SESSION = 'users';
+
+    public function __construct() {
+        if (!isset($_SESSION[self::USER_SESSION])) {
+            $_SESSION[self::USER_SESSION] = [
+                'admin' => ['username' => 'admin', 'password' => '123', 'role' => 'admin', 'nama' => 'Administrator'],
+                'pasien' => ['username' => 'pasien', 'password' => '123', 'role' => 'pasien', 'nama' => 'Budi (Pasien)']
+            ];
         }
-        if ($username === 'pasien' && $password === '123') {
-            $_SESSION['user'] = ['username' => 'pasien', 'role' => 'pasien', 'nama' => 'Budi (Pasien)'];
+    }
+
+    public function login(string $username, string $password): bool {
+        $users = $_SESSION[self::USER_SESSION];
+        if (isset($users[$username]) && $users[$username]['password'] === $password) {
+            $_SESSION['user'] = [
+                'username' => $users[$username]['username'],
+                'role' => $users[$username]['role'],
+                'nama' => $users[$username]['nama']
+            ];
             return true;
         }
         return false;
+    }
+
+    public function register(string $username, string $password, string $nama): bool {
+        $users = $_SESSION[self::USER_SESSION];
+        if (isset($users[$username])) {
+            return false;
+        }
+        $users[$username] = [
+            'username' => $username,
+            'password' => $password,
+            'role' => 'pasien',
+            'nama' => $nama
+        ];
+        $_SESSION[self::USER_SESSION] = $users;
+        return true;
     }
 
     public function logout(): void {
@@ -35,10 +63,18 @@ class ReservationModel {
         }
     }
 
-    public function add(array $data): void {
+    public function add(array $data): int {
         $reservations = $this->getAll();
         $newId = empty($reservations) ? 1 : max(array_column($reservations, 'id')) + 1;
+
+        $antrianSpesifik = array_filter($reservations, function($r) use ($data) {
+            return $r['id_dokter'] === $data['id_dokter'] && $r['hari'] === $data['hari'];
+        });
         
+        $nomorUrut = count($antrianSpesifik) + 1;
+        
+        $nomorAntrian = 'D' . $data['id_dokter'] . '-' . str_pad($nomorUrut, 3, '0', STR_PAD_LEFT);
+
         $reservations[] = [
             'id' => $newId,
             'id_dokter' => $data['id_dokter'],
@@ -46,13 +82,23 @@ class ReservationModel {
             'nama_pasien' => $data['nama_pasien'],
             'hari' => $data['hari'],
             'jam' => $data['jam'],
+            'nomor_antrian' => $nomorAntrian,
             'tanggal_booking' => date('Y-m-d H:i:s')
         ];
         $_SESSION[self::SESSION_KEY] = $reservations;
+        
+        return $newId;
     }
 
     public function getAll(): array {
         return $_SESSION[self::SESSION_KEY] ?? [];
+    }
+
+    public function findById(int $id): ?array {
+        foreach ($this->getAll() as $r) {
+            if ((int)$r['id'] === $id) return $r;
+        }
+        return null;
     }
 }
 

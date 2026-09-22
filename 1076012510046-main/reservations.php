@@ -18,27 +18,37 @@
     <div class="container">
         <h3 class="mb-4">Data Reservasi</h3>
         <div class="table-responsive bg-white rounded shadow-sm p-3">
-            <table class="table table-bordered">
+            <table class="table table-bordered text-center align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>ID Booking</th>
+                        <th>No. Antrian</th>
                         <th>Nama Pasien</th>
                         <th>Nama Dokter</th>
                         <th>Jadwal Terpilih</th>
                         <th>Waktu Transaksi</th>
+                        <?php if ($user['role'] === 'pasien'): ?>
+                            <th>Aksi</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($reservations)): ?>
-                        <tr><td colspan="5" class="text-center">Belum ada data reservasi.</td></tr>
+                        <tr>
+                            <td colspan="<?php echo $user['role'] === 'pasien' ? '6' : '5'; ?>" class="text-center">Belum ada data reservasi.</td>
+                        </tr>
                     <?php else: ?>
                         <?php foreach ($reservations as $r): ?>
                             <tr>
-                                <td>#BK-<?php echo str_pad($r['id'], 3, '0', STR_PAD_LEFT); ?></td>
+                                <td class="fw-bold text-success fs-5"><?php echo htmlspecialchars($r['nomor_antrian'] ?? '-'); ?></td>
                                 <td><?php echo htmlspecialchars($r['nama_pasien']); ?></td>
                                 <td><?php echo htmlspecialchars($r['nama_dokter']); ?></td>
                                 <td><span class="badge bg-primary"><?php echo htmlspecialchars($r['hari']); ?></span> <?php echo htmlspecialchars($r['jam']); ?></td>
                                 <td class="text-muted"><?php echo htmlspecialchars($r['tanggal_booking']); ?></td>
+                                <?php if ($user['role'] === 'pasien'): ?>
+                                    <td>
+                                        <a href="index.php?action=ticket&id=<?php echo $r['id']; ?>" class="btn btn-sm btn-info text-white">Lihat Tiket</a>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
